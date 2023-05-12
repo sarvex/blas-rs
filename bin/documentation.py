@@ -25,7 +25,7 @@ class Formula(Blob):
     def format(self, output):
         output.write("/// ```text\n")
         for line in self.lines:
-            output.write("/// {}\n".format(line))
+            output.write(f"/// {line}\n")
         output.write("/// ```\n")
 
 class Space(Blob):
@@ -43,7 +43,7 @@ class Text(Blob):
         lines = self.lines
 
         if index == 0:
-            first = re.sub(r"(?i)\s*{}\s+".format(f.name), "", lines[0])
+            first = re.sub(f"(?i)\s*{f.name}\s+", "", lines[0])
             lines[0] = first
 
         line = " ".join(lines)
@@ -52,13 +52,13 @@ class Text(Blob):
         line = re.sub(r"\s+\)", ")", line)
 
         if index == total - 1 and line[-1] != ".":
-            line = "{}.".format(line)
+            line = f"{line}."
 
         lines = line.split(". ")
         lowercase = ["alpha", "or", "where"]
         for i, line in enumerate(lines):
-            if all([not line.startswith(word) for word in lowercase]):
-                lines[i] = "{}{}".format(line[0].upper(), line[1:])
+            if all(not line.startswith(word) for word in lowercase):
+                lines[i] = f"{line[0].upper()}{line[1:]}"
         line = ". ".join(lines)
 
         substitutes = {
@@ -66,7 +66,7 @@ class Text(Blob):
             "equal to 1": "equal to one",
         }
         for key, value in substitutes.items():
-            line = re.sub(r"\b{}\b".format(key), value, line)
+            line = re.sub(f"\b{key}\b", value, line)
 
         chunks = line.split(" ")
         lines = []
@@ -84,12 +84,12 @@ class Text(Blob):
 
     def format(self, output):
         for line in self.lines:
-            output.write("/// {}\n".format(line))
+            output.write(f"/// {line}\n")
 
 def clean(lines):
     lines = [re.sub(r"^\*> ?", "", line.rstrip()) for line in lines]
 
-    while len(lines) > 0 and lines[0].strip() == "":
+    while lines and lines[0].strip() == "":
         lines = lines[1:]
 
     while len(lines) > 0 and lines[-1].strip() == "":
@@ -150,7 +150,7 @@ def partition(lines):
     return paragraphs
 
 def print_documentation(f, reference):
-    filename = os.path.join(reference, "BLAS", "SRC", "{}.f".format(f.name))
+    filename = os.path.join(reference, "BLAS", "SRC", f"{f.name}.f")
     if not os.path.exists(filename):
         return
     paragraphs = partition(clean(extract(filename)))

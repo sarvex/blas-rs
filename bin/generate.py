@@ -32,17 +32,10 @@ def is_scalar(name, cty, f):
 def translate_argument(name, cty, f):
     base = translate_type_base(cty)
     if is_const(name, cty):
-        if is_scalar(name, cty, f):
-            return base
-        else:
-            return "&[{}]".format(base)
+        return base if is_scalar(name, cty, f) else f"&[{base}]"
     elif is_mut(name, cty):
-        if is_scalar(name, cty, f):
-            return "&mut {}".format(base)
-        else:
-            return "&mut [{}]".format(base)
-
-    assert False, "cannot translate `{}: {}`".format(name, cty)
+        return f"&mut {base}" if is_scalar(name, cty, f) else f"&mut [{base}]"
+    assert False, f"cannot translate `{name}: {cty}`"
 
 def translate_type_base(cty):
     if "c_char" in cty:
@@ -58,64 +51,62 @@ def translate_type_base(cty):
     elif "float" in cty:
         return "f32"
 
-    assert False, "cannot translate `{}`".format(cty)
+    assert False, f"cannot translate `{cty}`"
 
 def translate_body_argument(name, rty):
     if rty == "u8":
-        return "&({} as c_char)".format(name)
+        return f"&({name} as c_char)"
 
     elif rty == "i32":
-        return "&{}".format(name)
+        return f"&{name}"
 
     elif rty.startswith("f"):
-        return "&{}".format(name)
+        return f"&{name}"
     elif rty.startswith("&mut f"):
-        return "{}".format(name)
+        return f"{name}"
     elif rty.startswith("&[f"):
-        return "{}.as_ptr()".format(name)
+        return f"{name}.as_ptr()"
     elif rty.startswith("&mut [f"):
-        return "{}.as_mut_ptr()".format(name)
+        return f"{name}.as_mut_ptr()"
 
     elif rty.startswith("c"):
-        return "&{} as *const _ as *const _".format(name)
+        return f"&{name} as *const _ as *const _"
     elif rty.startswith("&mut c"):
-        return "{} as *mut _ as *mut _".format(name)
+        return f"{name} as *mut _ as *mut _"
     elif rty.startswith("&[c"):
-        return "{}.as_ptr() as *const _".format(name)
+        return f"{name}.as_ptr() as *const _"
     elif rty.startswith("&mut [c"):
-        return "{}.as_mut_ptr() as *mut _".format(name)
+        return f"{name}.as_mut_ptr() as *mut _"
 
-    assert False, "cannot translate `{}: {}`".format(name, rty)
+    assert False, f"cannot translate `{name}: {rty}`"
 
 def translate_return_type(cty):
-    if cty == "c_int":
-        return "usize"
-    elif cty == "c_float":
-        return "f32"
-    elif cty == "c_double":
+    if cty == "c_double":
         return "f64"
 
-    assert False, "cannot translate `{}`".format(cty)
+    elif cty == "c_float":
+        return "f32"
+    elif cty == "c_int":
+        return "usize"
+    assert False, f"cannot translate `{cty}`"
 
 def format_header(f):
     args = format_header_arguments(f)
     if f.ret is None:
-        return "pub unsafe fn {}({})".format(f.name, args)
+        return f"pub unsafe fn {f.name}({args})"
     else:
-        return "pub unsafe fn {}({}) -> {}".format(f.name, args, translate_return_type(f.ret))
+        return f"pub unsafe fn {f.name}({args}) -> {translate_return_type(f.ret)}"
 
 def format_body(f):
     args = format_body_arguments(f)
     ret = format_body_return(f)
     if ret is None:
-        return "ffi::{}_({})".format(f.name, args)
+        return f"ffi::{f.name}_({args})"
     else:
-        return "ffi::{}_({}) as {}".format(f.name, args, ret)
+        return f"ffi::{f.name}_({args}) as {ret}"
 
 def format_header_arguments(f):
-    s = []
-    for arg in f.args:
-        s.append("{}: {}".format(arg[0], translate_argument(*arg, f=f)))
+    s = ["{}: {}".format(arg[0], translate_argument(*arg, f=f)) for arg in f.args]
     return ", ".join(s)
 
 def format_body_arguments(f):
@@ -130,10 +121,7 @@ def format_body_return(f):
         return None
 
     rty = translate_return_type(f.ret)
-    if rty.startswith("f"):
-        return None
-
-    return rty
+    return None if rty.startswith("f") else rty
 
 def prepare(level, code):
     lines = filter(lambda line: not re.match(r'^\s*//.*', line), code.split('\n'))
@@ -147,7 +135,7 @@ def do(functions, reference):
             print_documentation(f, reference)
         print("\n#[inline]")
         print(format_header(f) + " {")
-        print("    " + format_body(f) + "\n}")
+        print(f"    {format_body(f)}" + "\n}")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
